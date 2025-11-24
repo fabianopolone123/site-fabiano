@@ -37,3 +37,26 @@ class Usuario(models.Model):
 
     def __str__(self):
         return self.nome_completo  # mostra nome no admin
+    
+
+
+class Pedido(models.Model):
+    nome_cliente = models.CharField(max_length=150)     # nome da pessoa
+    whatsapp = models.CharField(max_length=20)          # telefone validado
+    data = models.DateTimeField(auto_now_add=True)      # data do pedido
+    total = models.DecimalField(max_digits=10, decimal_places=2)  # total geral
+
+    def __str__(self):
+        return f"Pedido #{self.id} - {self.nome_cliente}"
+        
+
+
+class ItemPedido(models.Model):
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE)   # relação
+    produto = models.ForeignKey(Produto, on_delete=models.PROTECT) # produto
+    quantidade = models.IntegerField()                             # qtd
+    preco_unitario = models.DecimalField(max_digits=8, decimal_places=2)  # preço no momento
+
+    def subtotal(self):
+        return self.quantidade * self.preco_unitario
+

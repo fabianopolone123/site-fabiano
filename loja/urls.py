@@ -7,6 +7,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
+    path('carrinho/', views.carrinho, name='carrinho'),
+
 ]
 
 # aqui embaixo — sem sobrescrever! apenas adicionando
