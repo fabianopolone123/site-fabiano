@@ -1,5 +1,7 @@
 from django.shortcuts import render
+from .models import Produto  # importa produtos
 
-# Create your views here.
-def home(request):  # cria função home
-    return render(request, "home.html")  # abre home.html
+
+def home(request):
+    produtos = Produto.objects.all()  # pega todos produtos
+    return render(request, "home.html", {"produtos": produtos})  # envia para o html

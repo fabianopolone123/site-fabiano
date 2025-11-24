@@ -1,2 +1,51 @@
-<h1>Sistema de Vendas Interno</h1>
-<p>Primeira página carregada com sucesso!</p>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Loja Interna</title>
+    <link rel="stylesheet" href="/static/css/home.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- RESPONSIVIDADE -->
+</head>
+<body>
+
+<!-- BARRA SUPERIOR (NAVBAR) -->
+<div class="topbar">
+    <h2>Minha Loja Interna</h2>
+    <div class="menu">
+        <a href="#">Produtos</a>
+        <a href="#">Carrinho</a>
+        <a href="#">Ajuda</a>
+    </div>
+</div>
+
+<!-- TÍTULO -->
+
+
+<!-- LISTA DE PRODUTOS -->
+<div id="lista-produtos">
+
+    {% for p in produtos %}
+    <div class="produto">
+
+        <img src="{{ p.imagem.url }}" alt="{{ p.nome }}">
+
+        <h3>{{ p.nome }}</h3>
+        <p class="preco">Preço: R$ {{ p.preco }}</p>
+        <p class="estoque">Estoque: {{ p.estoque }}</p>
+
+        <div class="qtd-controle">
+            <button class="btn-menos">-</button>
+            <span class="qtd">0</span>
+            <button class="btn-mais">+</button>
+        </div>
+
+        <button class="btn-add">Adicionar ao Carrinho</button>
+    </div>
+    {% endfor %}
+
+</div>
+
+<script src="/static/js/home.js"></script>
+
+</body>
+</html>
