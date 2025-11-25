@@ -1,0 +1,52 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Finalizar Pedido</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/finalizar.css' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<h1 class="titulo-finalizar">Finalizar Pedido</h1>
+
+<div class="card">
+
+    <label>Selecione seu nome:</label>
+    <select id="cliente-select">
+        <option value="">— Selecione —</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}">{{ c.nome_completo }} — ({{ c.whatsapp }})</option>
+
+        {% endfor %}
+    </select>
+
+    <button id="btn-novo">Adicionar novo cliente</button>
+
+    <div id="novo-cliente" style="display:none; margin-top:20px;">
+        <input id="novo-nome" placeholder="Nome completo">
+        <input id="novo-whats" placeholder="WhatsApp (somente números)">
+        <button id="btn-salvar">Salvar cliente</button>
+    </div>
+
+    <h2>Total: <span id="total-pedido"></span></h2>
+
+    <h3>Forma de Pagamento:</h3>
+
+    <div class="pagamentos">
+        <div class="pg-card" data-pg="pix">PIX à vista</div>
+        <div class="pg-card" data-pg="6">Agendar dia 6</div>
+        <div class="pg-card" data-pg="20">Agendar dia 20</div>
+    </div>
+
+    <button class="btn-finalizar" id="btn-finalizar-pedido">Finalizar Pedido</button>
+
+</div>
+
+<script src="{% static 'js/finalizar.js' %}"></script>
+
+</body>
+</html>

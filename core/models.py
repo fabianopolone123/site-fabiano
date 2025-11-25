@@ -41,13 +41,21 @@ class Usuario(models.Model):
 
 
 class Pedido(models.Model):
-    nome_cliente = models.CharField(max_length=150)     # nome da pessoa
-    whatsapp = models.CharField(max_length=20)          # telefone validado
-    data = models.DateTimeField(auto_now_add=True)      # data do pedido
-    total = models.DecimalField(max_digits=10, decimal_places=2)  # total geral
-
+    nome_cliente = models.CharField(max_length=150)
+    whatsapp = models.CharField(max_length=20)
+    
+    data_pedido = models.DateTimeField(auto_now_add=True)   # data da CRIAÇÃO do pedido
+    
+    forma_pagamento = models.CharField(max_length=20)       # "pix", "6", "20"
+    
+    data_cobranca = models.DateField(null=True, blank=True) # data que vai cobrar (dia 6/20)
+    
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    external_reference = models.CharField(max_length=200, blank=True, null=True)  # PIX
+    
     def __str__(self):
-        return f"Pedido #{self.id} - {self.nome_cliente}"
+        return f"Pedido {self.id} - {self.nome_cliente}"
         
 
 

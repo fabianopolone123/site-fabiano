@@ -1,0 +1,141 @@
+body {
+    margin: 0;
+    padding: 25px;
+    background: #f5f7fa;
+    font-family: Arial, sans-serif;
+}
+
+/* Título */
+.titulo-finalizar {
+    text-align: center;
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 25px;
+}
+
+/* Card central */
+.card {
+    max-width: 480px;
+    background: white;
+    padding: 25px;
+    margin: auto;
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+}
+
+/* Select, inputs e campos */
+select,
+input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+/* Botão adicionar novo cliente */
+#btn-novo {
+    padding: 12px;
+    background: #3A6EA5;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    width: 100%;
+    cursor: pointer;
+    margin-top: 15px;
+    font-size: 16px;
+}
+
+#btn-novo:hover {
+    background: #2d5582;
+}
+
+/* Container do novo cliente */
+#novo-cliente {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+/* Espaço entre WhatsApp e botão Salvar */
+#novo-cliente input:last-of-type {
+    margin-bottom: 20px;
+}
+
+
+/* Botão salvar cliente */
+#btn-salvar {
+    padding: 12px;
+    background: #3A6EA5;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    width: 100%;
+    cursor: pointer;
+    margin-top: 5px;
+    font-size: 16px;
+}
+
+#btn-salvar:hover {
+    background: #2d5582;
+}
+
+/* Total */
+#total-pedido {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* Formas de pagamento */
+.pagamentos {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.pg-card {
+    flex: 1;
+    background: #ddd;
+    padding: 15px;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+    font-weight: bold;
+    font-size: 15px;
+}
+
+.pg-card:hover {
+    background: #ccc;
+    transform: scale(1.05);
+}
+
+.pg-card.selecionado {
+    background: #3A6EA5;
+    color: white;
+    box-shadow: 0 0 8px rgba(58,110,165,0.6);
+}
+
+/* Botão Finalizar */
+.btn-finalizar {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    background: #2D81FF;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: 0.2s;
+    margin-top: 25px;
+}
+
+.btn-finalizar:hover {
+    background: #1F63CC;
+    transform: scale(1.03);
+}

@@ -1,3 +1,5 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -20,7 +22,10 @@
     <strong id="total-geral">R$ 0,00</strong>
 </div>
 
-<button class="btn-finalizar">Finalizar Pedido</button>
+<button class="btn-finalizar" onclick="window.location='/finalizar/'">
+    Finalizar Pedido
+</button>
+
 
 <script src="{% static 'js/carrinho.js' %}"></script>
 

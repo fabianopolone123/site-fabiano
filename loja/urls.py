@@ -8,6 +8,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     path('carrinho/', views.carrinho, name='carrinho'),
+    path('finalizar/', views.finalizar, name='finalizar'),
+    path("salvar_cliente/", views.salvar_cliente, name="salvar_cliente"),
+    path("criar_pedido/", views.criar_pedido, name="criar_pedido"),
+
+
 
 ]
 
