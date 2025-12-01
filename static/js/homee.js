@@ -26,7 +26,7 @@ function atualizarCarrinhoCount() {
 const produtos = document.querySelectorAll(".produto");
 
 produtos.forEach(card => {
-    
+
     const btnMais = card.querySelector(".btn-mais");
     const btnMenos = card.querySelector(".btn-menos");
     const btnAdd = card.querySelector(".btn-add");
@@ -34,7 +34,7 @@ produtos.forEach(card => {
     const estoque = parseInt(card.querySelector(".estoque").dataset.estoque);
 
     const nome = card.querySelector("h3").textContent;
-    const preco = parseFloat(card.querySelector(".preco").textContent.replace("Preço: R$ ", ""));
+    const preco = parseFloat(card.dataset.preco);  // <<<<< AGORA CORRETO!
     const imagem = card.querySelector("img").src;
 
     let qtd = 1;
@@ -66,7 +66,7 @@ produtos.forEach(card => {
         const itemExistente = carrinho.find(i => i.nome === nome);
 
         if (itemExistente) {
-            // SOMA a quantidade
+            // Soma quantidade
             if (itemExistente.qtd + qtd <= estoque) {
                 itemExistente.qtd += qtd;
             } else {
@@ -75,7 +75,7 @@ produtos.forEach(card => {
         } else {
             carrinho.push({
                 nome: nome,
-                preco: preco,
+                preco: preco,       // <<<<< VALOR DECIMAL MANTIDO
                 qtd: qtd,
                 imagem: imagem,
                 estoque: estoque
@@ -85,7 +85,7 @@ produtos.forEach(card => {
         salvarCarrinho(carrinho);
         atualizarCarrinhoCount();
 
-        // feedback visual
+        // Feedback visual
         btnAdd.textContent = "Adicionado ✔";
         btnAdd.style.background = "#28a745";
 
@@ -96,5 +96,5 @@ produtos.forEach(card => {
     });
 });
 
-// Atualiza contador na primeira carga
+// Atualiza o contador na primeira carga
 atualizarCarrinhoCount();
