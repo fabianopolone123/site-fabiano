@@ -57,6 +57,61 @@ def salvar_cliente(request):
     return JsonResponse({"ok": True, "id": u.id})
 
 
+def montar_msg_cliente(pedido, itens):
+    lista_itens = ""
+    for item in itens:
+        lista_itens += f"• {item['nome']} x{item['qtd']}\n"
+
+    msg = (
+        f"🧊 *Seu pedido foi confirmado!*\n\n"
+        f"🛍 *Itens do pedido:*\n"
+        f"{lista_itens}\n"
+        f"💰 *Total:* R$ {pedido.total}\n"
+    )
+
+    if pedido.forma_pagamento == "pix":
+        msg += "💳 *Forma de pagamento:* PIX à vista\n"
+    elif pedido.forma_pagamento == "6":
+        msg += "💳 *Pagamento agendado para o dia 6*\n"
+    elif pedido.forma_pagamento == "20":
+        msg += "💳 *Pagamento agendado para o dia 20*\n"
+
+    if pedido.data_cobranca:
+        msg += f"📅 *Data do pagamento:* {pedido.data_cobranca.strftime('%d/%m/%Y')}\n"
+
+    msg += (
+        "\n🤝 Muito obrigado!\n"
+        "Qualquer dúvida estou à disposição 😊"
+    )
+
+    return msg
+
+
+def montar_msg_admin(pedido, itens):
+    lista_itens = ""
+    for item in itens:
+        lista_itens += f"- {item['nome']} x{item['qtd']} (R$ {item['preco']})\n"
+
+    msg = (
+        f"📢 *NOVO PEDIDO RECEBIDO*\n\n"
+        f"🧾 *Pedido ID:* {pedido.id}\n"
+        f"👤 *Cliente:* {pedido.nome_cliente}\n"
+        f"📞 *Whats:* {pedido.whatsapp}\n"
+        f"💰 *Total:* R$ {pedido.total}\n"
+        f"💳 *Forma de pagamento:* {pedido.forma_pagamento}\n"
+    )
+
+    if pedido.data_cobranca:
+        msg += f"📅 *Data programada:* {pedido.data_cobranca.strftime('%d/%m/%Y')}\n"
+
+    msg += (
+        f"\n🛍 *Itens do pedido:*\n"
+        f"{lista_itens}"
+        "\n⚙️ Enviado automaticamente pelo sistema."
+    )
+
+    return msg
+
 # ===========================================================
 # ====================== CRIAR PEDIDO =======================
 # ===========================================================
@@ -67,9 +122,8 @@ def criar_pedido(request):
         return JsonResponse({"ok": False, "erro": "Método inválido"})
 
     dados = json.loads(request.body)
-
     cliente_id = dados.get("cliente")
-    pagamento = dados.get("pagamento")   # "pix" | "6" | "20"
+    pagamento = dados.get("pagamento")
     itens = dados.get("itens")
 
     if not cliente_id or not pagamento or not itens:
@@ -77,14 +131,9 @@ def criar_pedido(request):
 
     cliente = Usuario.objects.get(id=cliente_id)
 
-    # ================================
-    # CALCULAR TOTAL DO PEDIDO
-    # ================================
+    # Calcular total
     total = sum(item["preco"] * item["qtd"] for item in itens)
 
-    # ================================
-    # CALCULAR DATA DE COBRANÇA (6 / 20)
-    # ================================
     from datetime import date
     hoje = date.today()
     data_cobranca = None
@@ -94,8 +143,7 @@ def criar_pedido(request):
         mes = hoje.month
         ano = hoje.year
 
-        # se já passou do dia → vai para o próximo mês
-        if hoje.day > dia:
+        if hoje.day >= dia:
             mes += 1
             if mes > 12:
                 mes = 1
@@ -103,9 +151,7 @@ def criar_pedido(request):
 
         data_cobranca = date(ano, mes, dia)
 
-    # ================================
-    # CRIAR PEDIDO
-    # ================================
+    # Criar pedido
     pedido = Pedido.objects.create(
         nome_cliente=cliente.nome_completo,
         whatsapp=cliente.whatsapp,
@@ -114,13 +160,10 @@ def criar_pedido(request):
         total=total
     )
 
-    # external reference inicial
     pedido.external_reference = f"PEDIDO_{pedido.id}_{cliente.whatsapp}"
     pedido.save()
 
-    # ================================
-    # CRIAR ITENS & BAIXAR ESTOQUE
-    # ================================
+    # Criar itens
     for item in itens:
         produto = Produto.objects.get(nome=item["nome"])
 
@@ -131,33 +174,30 @@ def criar_pedido(request):
             pedido=pedido,
             produto=produto,
             quantidade=item["qtd"],
-            preco_unitario=item["preco"],
+            preco_unitario=item["preco"]
         )
 
-        # baixa de estoque
         produto.estoque -= item["qtd"]
         produto.save()
 
-    # ================================
-    # ENVIAR NOTIFICAÇÃO AO ADMIN
-    # ================================
-    enviar_notificacao_admin(pedido)
+    # -------------------------------------------------
+    # 🔔 Enviar mensagem automática ao cliente + ADM
+    # -------------------------------------------------
 
-    # ================================
-    # SE FOR PIX À VISTA → redirecionar para QR Code
-    # ================================
+    msg_cliente = montar_msg_cliente(pedido, itens)
+    enviar_whatsapp(pedido.whatsapp, msg_cliente)
+
+    msg_admin = montar_msg_admin(pedido, itens)
+    enviar_whatsapp("5514988208134", msg_admin)
+
+
+    # Se PIX → redireciona para QR único
     if pagamento == "pix":
         redirect_url = f"/pix/?ref={pedido.id}"
-        return JsonResponse({
-            "ok": True,
-            "pedido_id": pedido.id,
-            "redirect_url": redirect_url
-        })
+        return JsonResponse({"ok": True, "pedido_id": pedido.id, "redirect_url": redirect_url})
 
-    # ================================
-    # RETORNO FINAL (pagamento agendado)
-    # ================================
     return JsonResponse({"ok": True, "pedido_id": pedido.id})
+
 
 
 
@@ -340,33 +380,20 @@ def painel_home(request):
 # ===========================================================
 
 def enviar_whatsapp(numero, msg):
-    import requests
-    import re
-    from django.conf import settings
-
-    # normaliza número (remove símbolos, garante formato 55...)
-    numero = re.sub(r"\D", "", str(numero))
-    if not numero.startswith("55") and len(numero) in (10, 11):
-        numero = "55" + numero
-
     url = settings.WAPI_URL
-
     headers = {
         "Authorization": f"Bearer {settings.WAPI_TOKEN}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-
     payload = {
         "phone": numero,
         "message": msg
     }
-
     try:
-        r = requests.post(url, json=payload, headers=headers, timeout=10)
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
         return r.json()
     except Exception as e:
-        return {"erro": str(e)}
-
+        return {"error": str(e)}
 
 
 
