@@ -145,9 +145,18 @@ def pagar_listar(request):
     dados = json.loads(request.body)
     cliente_id = dados.get("cliente")
 
+    # VALIDAÇÃO PARA EVITAR ERRO DE ID VAZIO
+    if not cliente_id or str(cliente_id).strip() == "":
+        return JsonResponse({"ok": False, "erro": "Nenhum cliente selecionado."})
+
+    try:
+        cliente_id = int(cliente_id)
+    except:
+        return JsonResponse({"ok": False, "erro": "ID inválido."})
+
     cliente = Usuario.objects.get(id=cliente_id)
 
-    # pedidos em aberto (status: pendente)
+    # pedidos em aberto (qualquer forma de pagamento exceto 'pago')
     pedidos = Pedido.objects.filter(
         nome_cliente=cliente.nome_completo
     ).exclude(forma_pagamento="pago")

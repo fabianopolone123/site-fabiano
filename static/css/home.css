@@ -5,24 +5,26 @@
 body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden;             /* remove scroll horizontal */
-    background: #f5f7fa;            /* cinza neutro elegante */
+    overflow-x: hidden;
+    background: #f5f7fa;
     font-family: Arial, sans-serif;
     color: #333;
 }
 
 /* =============================== */
-/* NAVBAR SUPERIOR MODERNA */
+/* NAVBAR SUPERIOR */
 /* =============================== */
 
 .topbar {
     width: 100%;
-    background: #3A6EA5;            /* azul elegante */
+    background: #3A6EA5;
     color: white;
     padding: 12px 20px;
+
     display: flex;
     justify-content: space-between;
     align-items: center;
+
     box-sizing: border-box;
     box-shadow: 0 3px 10px rgba(0,0,0,0.15);
     position: sticky;
@@ -36,8 +38,14 @@ body {
     font-weight: 600;
 }
 
+/* MENU */
+.menu {
+    display: flex;
+    align-items: center;
+    gap: 20px; /* espaçamento entre itens */
+}
+
 .menu a {
-    margin-left: 20px;
     color: white;
     text-decoration: none;
     font-size: 16px;
@@ -48,8 +56,48 @@ body {
     opacity: .7;
 }
 
+/* Botão "Pagar pedidos" */
+.menu-link {
+    background: #1e90ff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.menu-link:hover {
+    background: #0b68c2;
+    opacity: 1;
+}
+
+/* Ícone do carrinho */
+.carrinho-icone {
+    font-size: 20px;
+    cursor: pointer;
+    padding: 6px 12px;
+    background: #2D81FF;
+    border-radius: 8px;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    transition: background .2s;
+}
+
+.carrinho-icone:hover {
+    background: #1F63CC;
+}
+
+#carrinho-count {
+    background: white;
+    color: #2D81FF;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
 /* =============================== */
-/* LISTA DE PRODUTOS (CARDS) */
+/* LISTA DE PRODUTOS */
 /* =============================== */
 
 #lista-produtos {
@@ -62,18 +110,20 @@ body {
 
 /* CARD */
 .produto {
-    max-width: 260px;               
+    max-width: 260px;
     width: 100%;
     background: #fff;
     border-radius: 12px;
     padding: 15px;
+
     box-shadow: 0 4px 8px rgba(0,0,0,0.08);
     transition: transform .2s, box-shadow .2s;
+
     box-sizing: border-box;
 }
 
 .produto:hover {
-    transform: translateY(-6px);    /* efeito moderno */
+    transform: translateY(-6px);
     box-shadow: 0 6px 18px rgba(0,0,0,0.15);
 }
 
@@ -89,14 +139,13 @@ body {
     font-size: 18px;
     font-weight: bold;
     margin: 8px 0;
-    text-align: center;   /* centraliza */
+    text-align: center;
 }
-
 
 .preco, .estoque {
     color: #555;
     margin: 4px 0;
-    text-align: center;   /* centraliza */
+    text-align: center;
 }
 
 /* =============================== */
@@ -140,7 +189,7 @@ body {
 .btn-add {
     width: 100%;
     padding: 12px;
-    background: #2D81FF;        /* azul moderno */
+    background: #2D81FF;
     color: #fff;
     border: none;
     border-radius: 10px;
@@ -162,49 +211,32 @@ body {
     #lista-produtos {
         gap: 18px;
     }
+
     .produto {
-        width: 45%;             /* tablet: 2 por linha */
+        width: 45%;
     }
 }
 
 @media (max-width: 600px) {
-    .produto {
-        width: 90%;             /* celular: 1 por linha */
-    }
+
+    /* NAVBAR empilha e centraliza */
     .topbar {
         flex-direction: column;
+        gap: 10px;
         text-align: center;
+    }
+
+    .menu {
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 10px;
     }
+
     .menu a {
-        margin-left: 10px;
         font-size: 14px;
     }
-}
 
-
-/* Ícone do carrinho */
-.carrinho-icone {
-    font-size: 20px;
-    cursor: pointer;
-    margin-left: 15px;
-    padding: 5px 10px;
-    background: #2D81FF;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background .2s;
-}
-
-.carrinho-icone:hover {
-    background: #1F63CC;
-}
-
-#carrinho-count {
-    background: white;
-    color: #2D81FF;
-    padding: 2px 6px;
-    border-radius: 8px;
-    font-weight: bold;
+    .produto {
+        width: 90%;
+    }
 }
