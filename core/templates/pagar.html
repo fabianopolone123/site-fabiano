@@ -1,0 +1,77 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pagar pedidos</title>
+    <link rel="stylesheet" href="/static/css/pagar.css">
+
+</head>
+<body>
+
+<h1>Pagar pedidos</h1>
+
+<label>Selecione o cliente:</label>
+<select id="cliente">
+    <option value="">— selecione —</option>
+    {% for c in clientes %}
+    <option value="{{ c.id }}">{{ c.nome_completo }}</option>
+    {% endfor %}
+</select>
+
+<button onclick="buscarPedidos()">Buscar pedidos</button>
+
+<div id="lista"></div>
+
+<button id="btn-pagar" onclick="confirmarPagamento()" style="display:none;">
+    Confirmar pagamento
+</button>
+
+<script>
+function buscarPedidos() {
+    const cliente = document.getElementById("cliente").value;
+
+    fetch("/pagar_listar/", {
+        method: "POST",
+        body: JSON.stringify({ cliente }),
+        headers: {"Content-Type": "application/json"}
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (!res.ok) return;
+
+        let html = "<h3>Pedidos em aberto:</h3>";
+
+        res.pedidos.forEach(p => {
+            html += `
+                <label>
+                    <input type="checkbox" class="pedido-check" value="${p.id}">
+                    Pedido ${p.id} — ${p.data} — R$ ${p.total}
+                </label><br>
+            `;
+        });
+
+        document.getElementById("lista").innerHTML = html;
+        document.getElementById("btn-pagar").style.display = "block";
+    });
+}
+
+function confirmarPagamento() {
+    const selecionados = [...document.querySelectorAll(".pedido-check:checked")].map(e => e.value);
+
+    fetch("/pagar_confirmar/", {
+        method: "POST",
+        body: JSON.stringify({ pedidos: selecionados }),
+        headers: {"Content-Type": "application/json"}
+    })
+    .then(r => r.json())
+    .then(res => {
+        alert("Pagamento marcado com sucesso!");
+        location.reload();
+    });
+}
+</script>
+
+</body>
+</html>

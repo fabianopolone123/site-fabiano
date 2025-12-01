@@ -1,0 +1,15 @@
+Django
+djangorestframework
+Pillow
+requests
+mercadopago
+python-dotenv
+bcrypt
+psycopg2-binary
+sqlite-web
+celery
+redis
+django-cors-headers
+pyngrok
+qrcode
+pypng

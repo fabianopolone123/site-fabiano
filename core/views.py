@@ -133,3 +133,42 @@ def criar_pedido(request):
         produto.save()
 
     return JsonResponse({"ok": True, "pedido_id": pedido.id})
+
+
+def pagar(request):
+    clientes = Usuario.objects.all().order_by("nome_completo")
+    return render(request, "pagar.html", {"clientes": clientes})
+
+
+@csrf_exempt
+def pagar_listar(request):
+    dados = json.loads(request.body)
+    cliente_id = dados.get("cliente")
+
+    cliente = Usuario.objects.get(id=cliente_id)
+
+    # pedidos em aberto (status: pendente)
+    pedidos = Pedido.objects.filter(
+        nome_cliente=cliente.nome_completo
+    ).exclude(forma_pagamento="pago")
+
+    lista = []
+    for p in pedidos:
+        lista.append({
+            "id": p.id,
+            "data": p.data_pedido.strftime("%d/%m/%Y"),
+            "total": float(p.total),
+            "forma_pagamento": p.forma_pagamento
+        })
+
+    return JsonResponse({"ok": True, "pedidos": lista})
+
+
+@csrf_exempt
+def pagar_confirmar(request):
+    dados = json.loads(request.body)
+    ids = dados.get("pedidos")
+
+    Pedido.objects.filter(id__in=ids).update(forma_pagamento="pago")
+
+    return JsonResponse({"ok": True})
