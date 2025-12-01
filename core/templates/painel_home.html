@@ -2,7 +2,9 @@
 <head>
     <title>Painel Administrativo</title>
     <link rel="stylesheet" href="/static/css/painel_home.css">
+    <meta charset="UTF-8">
 </head>
+
 <body>
 
 <h1>Painel Administrativo</h1>
@@ -10,25 +12,44 @@
 <!-- AÇÕES DO PAINEL -->
 <div class="painel-acoes">
     <button onclick="mostrarMsgTodos()" class="btn-acao">Enviar mensagem para TODOS</button>
-    <button onclick="mostrarCobranca()" class="btn-acao btn-vermelho">Cobrar Atrasados</button>
+    <button onclick="mostrarCobranca()" class="btn-acao btn-vermelho">Cobrar atrasados</button>
 </div>
 
-<!-- ===== MODAL: ENVIAR MENSAGEM PARA TODOS ===== -->
+
+<!-- ============================
+     MODAL: ENVIAR PARA TODOS
+=============================== -->
 <div id="modal-msg-todos" class="modal">
     <div class="modal-box">
+
         <h2>Enviar mensagem para TODOS os clientes</h2>
 
         <form method="POST" action="/painel/msg_enviar/">
             {% csrf_token %}
-            <textarea name="mensagem" placeholder="Use {nome} e {telefone}"></textarea>
 
+            <textarea id="msg_todos_texto" name="mensagem" placeholder="Use {nome} e {telefone}"></textarea>
+
+            <label>Carregar template:</label>
+            <select id="msg_todos_template" onchange="carregarTemplate('todos')">
+                <option value="">Selecione...</option>
+                {% for t in templates %}
+                    <option value="{{ t.id }}">{{ t.nome }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="button" class="btn-acao" onclick="salvarTemplate('todos')">Salvar como template</button>
             <button type="submit" class="btn-acao">Enviar</button>
             <button type="button" onclick="fecharModal()" class="btn-acao btn-vermelho">Cancelar</button>
         </form>
+
     </div>
 </div>
 
-<!-- ===== MODAL: COBRAR ATRASADOS ===== -->
+
+
+<!-- ============================
+     MODAL: COBRAR ATRASADOS
+=============================== -->
 <div id="modal-cobrar" class="modal">
     <div class="modal-box">
 
@@ -38,31 +59,33 @@
 
         <form method="POST" action="/painel/cobrar_enviar/">
             {% csrf_token %}
-            <textarea name="mensagem" placeholder="Use {nome}, {total}, {pedidos}"></textarea>
 
+            <textarea id="msg_cobrar_texto" name="mensagem" placeholder="Use {nome}, {total}, {pedidos}"></textarea>
+
+            <label>Carregar template:</label>
+            <select id="msg_cobrar_template" onchange="carregarTemplate('cobrar')">
+                <option value="">Selecione...</option>
+                {% for t in templates %}
+                    <option value="{{ t.id }}">{{ t.nome }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="button" class="btn-acao" onclick="salvarTemplate('cobrar')">Salvar como template</button>
             <button type="submit" class="btn-acao">Enviar cobranças</button>
             <button type="button" onclick="fecharModal()" class="btn-acao btn-vermelho">Cancelar</button>
         </form>
+
     </div>
 </div>
 
-<!-- JS -->
-<script>
-function mostrarMsgTodos() {
-    document.getElementById("modal-msg-todos").style.display = "flex";
-}
 
-function mostrarCobranca() {
-    document.getElementById("modal-cobrar").style.display = "flex";
-}
 
-function fecharModal() {
-    document.getElementById("modal-msg-todos").style.display = "none";
-    document.getElementById("modal-cobrar").style.display = "none";
-}
-</script>
 
+<!-- ============================
+     TABELA: PENDENTES
+=============================== -->
 <h2>📌 Pedidos pendentes</h2>
+
 <table>
     <tr>
         <th>ID</th>
@@ -76,14 +99,23 @@ function fecharModal() {
         <td>{{ p.id }}</td>
         <td>{{ p.nome_cliente }}</td>
         <td>R$ {{ p.total }}</td>
-        <td class="pendente">Pendente</td>
+        <td class="pendente">Não pago</td>
     </tr>
     {% empty %}
-    <tr><td colspan="4">Nenhuma pendência 🎉</td></tr>
+    <tr>
+        <td colspan="4">Nenhuma pendência 🎉</td>
+    </tr>
     {% endfor %}
 </table>
 
+
+
+
+<!-- ============================
+     TABELA: HISTÓRICO
+=============================== -->
 <h2>📜 Histórico de pedidos</h2>
+
 <table>
     <tr>
         <th>ID</th>
@@ -97,15 +129,96 @@ function fecharModal() {
         <td>{{ p.id }}</td>
         <td>{{ p.nome_cliente }}</td>
         <td>R$ {{ p.total }}</td>
-
-        {% if p.forma_pagamento == "pago" %}
-            <td class="pago">Pago</td>
-        {% else %}
-            <td class="pendente">Pendente</td>
-        {% endif %}
+        <td class="{% if p.forma_pagamento == 'pago' %}pago{% else %}pendente{% endif %}">
+            {% if p.forma_pagamento == 'pago' %}
+                Pago
+            {% else %}
+                Pendente
+            {% endif %}
+        </td>
     </tr>
     {% endfor %}
 </table>
+
+
+
+
+<!-- ============================
+     JAVASCRIPT
+=============================== -->
+<script>
+
+function mostrarMsgTodos() {
+    document.getElementById("modal-msg-todos").style.display = "flex";
+}
+
+function mostrarCobranca() {
+    document.getElementById("modal-cobrar").style.display = "flex";
+}
+
+function fecharModal() {
+    document.getElementById("modal-msg-todos").style.display = "none";
+    document.getElementById("modal-cobrar").style.display = "none";
+}
+
+
+// =========================
+// Carregar template
+// =========================
+function carregarTemplate(tipo) {
+    let select = document.getElementById(
+        tipo === "todos" ? "msg_todos_template" : "msg_cobrar_template"
+    );
+    let id = select.value;
+    if (!id) return;
+
+    fetch(`/painel/template/${id}/`)
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            let campo = document.getElementById(
+                tipo === "todos" ? "msg_todos_texto" : "msg_cobrar_texto"
+            );
+            campo.value = data.texto;
+        }
+    });
+}
+
+
+// =========================
+// Salvar template
+// =========================
+function salvarTemplate(tipo) {
+    let texto = document.getElementById(
+        tipo === "todos" ? "msg_todos_texto" : "msg_cobrar_texto"
+    ).value;
+
+    if (!texto.trim()) {
+        alert("Digite uma mensagem antes de salvar!");
+        return;
+    }
+
+    let nome = prompt("Digite um nome para este template:");
+    if (!nome) return;
+
+    let form = new FormData();
+    form.append("nome", nome);
+    form.append("texto", texto);
+
+    fetch(`/painel/template/salvar/`, {
+        method: "POST",
+        body: form
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            alert("Template salvo com sucesso!");
+            location.reload();
+        }
+    });
+}
+
+</script>
 
 </body>
 </html>

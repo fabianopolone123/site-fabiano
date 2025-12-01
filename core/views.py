@@ -3,13 +3,15 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 
-from .models import Produto, Usuario, Pedido, ItemPedido
+from .models import Produto, Usuario, Pedido, ItemPedido, TemplateMensagem
 from .mercadopago_client import MercadoPagoClient
 
 import json
 import requests
 from decimal import Decimal
 from datetime import date
+
+import time
 
 
 # ===========================================================
@@ -301,13 +303,13 @@ def painel_home(request):
         return redirect("/painel/")
 
     pedidos = Pedido.objects.all().order_by("-id")
-
-    # CORREÇÃO: buscar pendentes corretamente
     pendentes = Pedido.objects.exclude(forma_pagamento="pago")
+    templates = TemplateMensagem.objects.all().order_by("nome")
 
     return render(request, "painel_home.html", {
         "pedidos": pedidos,
-        "pendentes": pendentes
+        "pendentes": pendentes,
+        "templates": templates
     })
 
 
@@ -347,6 +349,7 @@ def enviar_whatsapp(numero, msg):
 
 
 
+
 def painel_msg_enviar(request):
     if request.method != "POST":
         return redirect("/painel/home/")
@@ -358,13 +361,17 @@ def painel_msg_enviar(request):
                    .replace("{telefone}", cli.whatsapp)
 
         enviar_whatsapp(cli.whatsapp, msg)
+        time.sleep(7)  # 🔥 evita bloqueio
 
     return redirect("/painel/home/")
+
 
 
 # ===========================================================
 # ====================== COBRAR ATRASADOS ====================
 # ===========================================================
+
+import time
 
 def painel_cobrar_enviar(request):
     if request.method != "POST":
@@ -372,38 +379,54 @@ def painel_cobrar_enviar(request):
 
     texto = request.POST.get("mensagem")
 
-    # pegar todos que NÃO estão pagos
-    pendentes = Pedido.objects.exclude(forma_pagamento="pago")
+    pendentes = Pedido.objects.filter(forma_pagamento__in=["6", "20", "pix"])
 
     dados = {}
     for p in pendentes:
+        cli = Usuario.objects.get(whatsapp=p.whatsapp)
+        if cli.id not in dados:
+            dados[cli.id] = {"cliente": cli, "total": 0, "pedidos": []}
+        dados[cli.id]["total"] += p.total
+        dados[cli.id]["pedidos"].append(str(p.id))
 
-        chave = p.whatsapp  # agrupamos por número
-
-        if chave not in dados:
-            dados[chave] = {
-                "nome": p.nome_cliente,
-                "whatsapp": p.whatsapp,
-                "total": 0,
-                "pedidos": []
-            }
-
-        dados[chave]["total"] += p.total
-        dados[chave]["pedidos"].append(str(p.id))
-
-    # enviar mensagens
     for item in dados.values():
-        nome = item["nome"]
-        numero = item["whatsapp"]
+        cli = item["cliente"]
         total = item["total"]
         ids = ", ".join(item["pedidos"])
 
-        msg = (
-            texto.replace("{nome}", nome)
-                 .replace("{total}", str(total))
-                 .replace("{pedidos}", ids)
-        )
+        msg = texto.replace("{nome}", cli.nome_completo)\
+                   .replace("{total}", str(total))\
+                   .replace("{pedidos}", ids)
 
-        enviar_whatsapp(numero, msg)
+        enviar_whatsapp(cli.whatsapp, msg)
+        time.sleep(7)  # 🔥 evita bloqueio
 
     return redirect("/painel/home/")
+
+
+def carregar_template(request, id):
+    from .models import TemplateMensagem
+
+    try:
+        t = TemplateMensagem.objects.get(id=id)
+        return JsonResponse({"ok": True, "texto": t.conteudo})
+    except:
+        return JsonResponse({"ok": False})
+
+
+
+@csrf_exempt
+def salvar_template(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False})
+
+    nome = request.POST.get("nome")
+    texto = request.POST.get("texto")
+
+    if not nome or not texto:
+        return JsonResponse({"ok": False, "erro": "Dados inválidos"})
+
+    t = TemplateMensagem(nome=nome, conteudo=texto)
+    t.save()
+
+    return JsonResponse({"ok": True, "id": t.id})

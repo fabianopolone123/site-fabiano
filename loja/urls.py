@@ -31,6 +31,10 @@ urlpatterns = [
     # COBRAR ATRASADOS
     path("painel/cobrar_enviar/", views.painel_cobrar_enviar, name="painel_cobrar_enviar"),
 
+    path("painel/template/salvar/", views.salvar_template),
+    path("painel/template/<int:id>/", views.carregar_template),
+
+
 ]
 
 
