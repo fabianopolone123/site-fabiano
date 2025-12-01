@@ -240,3 +240,18 @@ body {
         width: 90%;
     }
 }
+
+
+.btn-admin {
+    background: #222;
+    color: #fff;
+    padding: 8px 15px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.btn-admin:hover {
+    background: #444;
+}

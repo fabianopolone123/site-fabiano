@@ -1,0 +1,111 @@
+<html>
+<head>
+    <title>Painel Administrativo</title>
+    <link rel="stylesheet" href="/static/css/painel_home.css">
+</head>
+<body>
+
+<h1>Painel Administrativo</h1>
+
+<!-- AÇÕES DO PAINEL -->
+<div class="painel-acoes">
+    <button onclick="mostrarMsgTodos()" class="btn-acao">Enviar mensagem para TODOS</button>
+    <button onclick="mostrarCobranca()" class="btn-acao btn-vermelho">Cobrar Atrasados</button>
+</div>
+
+<!-- ===== MODAL: ENVIAR MENSAGEM PARA TODOS ===== -->
+<div id="modal-msg-todos" class="modal">
+    <div class="modal-box">
+        <h2>Enviar mensagem para TODOS os clientes</h2>
+
+        <form method="POST" action="/painel/msg_enviar/">
+            {% csrf_token %}
+            <textarea name="mensagem" placeholder="Use {nome} e {telefone}"></textarea>
+
+            <button type="submit" class="btn-acao">Enviar</button>
+            <button type="button" onclick="fecharModal()" class="btn-acao btn-vermelho">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- ===== MODAL: COBRAR ATRASADOS ===== -->
+<div id="modal-cobrar" class="modal">
+    <div class="modal-box">
+
+        <h2>Cobrar clientes com pendências</h2>
+
+        <p>Total de clientes com dívida: <b>{{ pendentes|length }}</b></p>
+
+        <form method="POST" action="/painel/cobrar_enviar/">
+            {% csrf_token %}
+            <textarea name="mensagem" placeholder="Use {nome}, {total}, {pedidos}"></textarea>
+
+            <button type="submit" class="btn-acao">Enviar cobranças</button>
+            <button type="button" onclick="fecharModal()" class="btn-acao btn-vermelho">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- JS -->
+<script>
+function mostrarMsgTodos() {
+    document.getElementById("modal-msg-todos").style.display = "flex";
+}
+
+function mostrarCobranca() {
+    document.getElementById("modal-cobrar").style.display = "flex";
+}
+
+function fecharModal() {
+    document.getElementById("modal-msg-todos").style.display = "none";
+    document.getElementById("modal-cobrar").style.display = "none";
+}
+</script>
+
+<h2>📌 Pedidos pendentes</h2>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Total</th>
+        <th>Status</th>
+    </tr>
+
+    {% for p in pendentes %}
+    <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.nome_cliente }}</td>
+        <td>R$ {{ p.total }}</td>
+        <td class="pendente">Pendente</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4">Nenhuma pendência 🎉</td></tr>
+    {% endfor %}
+</table>
+
+<h2>📜 Histórico de pedidos</h2>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Total</th>
+        <th>Status</th>
+    </tr>
+
+    {% for p in pedidos %}
+    <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.nome_cliente }}</td>
+        <td>R$ {{ p.total }}</td>
+
+        {% if p.forma_pagamento == "pago" %}
+            <td class="pago">Pago</td>
+        {% else %}
+            <td class="pendente">Pendente</td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

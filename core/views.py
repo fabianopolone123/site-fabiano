@@ -1,18 +1,24 @@
-from django.shortcuts import render
-from .models import Produto, Usuario, Pedido, ItemPedido  # importa produtos
-import json
+from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 
-from decimal import Decimal
+from .models import Produto, Usuario, Pedido, ItemPedido
 from .mercadopago_client import MercadoPagoClient
 
+import json
+import requests
+from decimal import Decimal
+from datetime import date
 
 
+# ===========================================================
+# ====================== PÁGINAS PRINCIPAIS =================
+# ===========================================================
 
 def home(request):
-    produtos = Produto.objects.all()  # pega todos produtos
-    return render(request, "home.html", {"produtos": produtos})  # envia para o html
+    produtos = Produto.objects.all()
+    return render(request, "home.html", {"produtos": produtos})
 
 
 def carrinho(request):
@@ -24,30 +30,34 @@ def finalizar(request):
     return render(request, "finalizar.html", {"clientes": clientes})
 
 
+# ===========================================================
+# ====================== CLIENTE NOVO =======================
+# ===========================================================
+
 @csrf_exempt
 def salvar_cliente(request):
     if request.method != "POST":
         return JsonResponse({"ok": False, "erro": "Método inválido"})
 
     dados = json.loads(request.body)
-
     nome = dados.get("nome")
     whats = dados.get("whats")
 
     if not nome or not whats:
         return JsonResponse({"ok": False, "erro": "Dados incompletos"})
 
-    # validar formato simples
     if not whats.isdigit():
         return JsonResponse({"ok": False, "erro": "WhatsApp inválido"})
 
-    # salvar no banco
     u = Usuario(nome_completo=nome, whatsapp=whats)
     u.save()
 
     return JsonResponse({"ok": True, "id": u.id})
 
 
+# ===========================================================
+# ====================== CRIAR PEDIDO =======================
+# ===========================================================
 
 @csrf_exempt
 def criar_pedido(request):
@@ -55,9 +65,8 @@ def criar_pedido(request):
         return JsonResponse({"ok": False, "erro": "Método inválido"})
 
     dados = json.loads(request.body)
-
     cliente_id = dados.get("cliente")
-    pagamento = dados.get("pagamento")   # "pix" | "6" | "20"
+    pagamento = dados.get("pagamento")
     itens = dados.get("itens")
 
     if not cliente_id or not pagamento or not itens:
@@ -65,19 +74,16 @@ def criar_pedido(request):
 
     cliente = Usuario.objects.get(id=cliente_id)
 
-    # Calcular total
     total = sum(item["preco"] * item["qtd"] for item in itens)
 
-    # ================================
-    # CALCULAR DATA DE COBRANÇA (6 / 20)
-    # ================================
-    from datetime import date
-
+    # =======================================================
+    # DATA DE COBRANÇA (6 / 20)
+    # =======================================================
     hoje = date.today()
     data_cobranca = None
 
-    if pagamento == "6":
-        dia = 6
+    if pagamento in ["6", "20"]:
+        dia = int(pagamento)
         mes = hoje.month
         ano = hoje.year
 
@@ -89,37 +95,23 @@ def criar_pedido(request):
 
         data_cobranca = date(ano, mes, dia)
 
-    elif pagamento == "20":
-        dia = 20
-        mes = hoje.month
-        ano = hoje.year
-
-        if hoje.day >= dia:
-            mes += 1
-            if mes > 12:
-                mes = 1
-                ano += 1
-
-        data_cobranca = date(ano, mes, dia)
-
-    # ================================
-    # CRIAR PEDIDO
-    # ================================
+    # =======================================================
+    # CRIA PEDIDO
+    # =======================================================
     pedido = Pedido.objects.create(
         nome_cliente=cliente.nome_completo,
         whatsapp=cliente.whatsapp,
         forma_pagamento=pagamento,
         data_cobranca=data_cobranca,
-        total=total
+        total=total,
     )
 
-    # Código único (para PIX futuro)
     pedido.external_reference = f"PEDIDO_{pedido.id}_{cliente.whatsapp}"
     pedido.save()
 
-    # ================================
-    # CRIAR ITENS & BAIXAR ESTOQUE
-    # ================================
+    # =======================================================
+    # CRIA ITENS E BAIXA ESTOQUE
+    # =======================================================
     for item in itens:
         produto = Produto.objects.get(nome=item["nome"])
 
@@ -136,16 +128,19 @@ def criar_pedido(request):
         produto.estoque -= item["qtd"]
         produto.save()
 
-        # SE FOR PIX À VISTA: já manda o cliente para a tela única do QRCode
+    # =======================================================
+    # PIX IMEDIATO
+    # =======================================================
     if pagamento == "pix":
-        # external_reference será tratado lá na pix_qr
         redirect_url = f"/pix/?ref={pedido.id}"
         return JsonResponse({"ok": True, "pedido_id": pedido.id, "redirect_url": redirect_url})
 
-    # se não for pix, fluxo normal
     return JsonResponse({"ok": True, "pedido_id": pedido.id})
 
 
+# ===========================================================
+# ========================== PAGAR ==========================
+# ===========================================================
 
 def pagar(request):
     clientes = Usuario.objects.all().order_by("nome_completo")
@@ -157,7 +152,6 @@ def pagar_listar(request):
     dados = json.loads(request.body)
     cliente_id = dados.get("cliente")
 
-    # VALIDAÇÃO PARA EVITAR ERRO DE ID VAZIO
     if not cliente_id or str(cliente_id).strip() == "":
         return JsonResponse({"ok": False, "erro": "Nenhum cliente selecionado."})
 
@@ -168,19 +162,14 @@ def pagar_listar(request):
 
     cliente = Usuario.objects.get(id=cliente_id)
 
-    # pedidos em aberto (qualquer forma de pagamento exceto 'pago')
-    pedidos = Pedido.objects.filter(
-        nome_cliente=cliente.nome_completo
-    ).exclude(forma_pagamento="pago")
+    pedidos = Pedido.objects.filter(nome_cliente=cliente.nome_completo).exclude(forma_pagamento="pago")
 
-    lista = []
-    for p in pedidos:
-        lista.append({
-            "id": p.id,
-            "data": p.data_pedido.strftime("%d/%m/%Y"),
-            "total": float(p.total),
-            "forma_pagamento": p.forma_pagamento
-        })
+    lista = [{
+        "id": p.id,
+        "data": p.data_pedido.strftime("%d/%m/%Y"),
+        "total": float(p.total),
+        "forma_pagamento": p.forma_pagamento,
+    } for p in pedidos]
 
     return JsonResponse({"ok": True, "pedidos": lista})
 
@@ -189,49 +178,39 @@ def pagar_listar(request):
 def pagar_confirmar(request):
     dados = json.loads(request.body)
     ids = dados.get("pedidos")
-
     Pedido.objects.filter(id__in=ids).update(forma_pagamento="pago")
-
     return JsonResponse({"ok": True})
 
 
+# ===========================================================
+# ========================== PIX ============================
+# ===========================================================
+
 def pix_qr(request):
-    """
-    Página única do QRCode PIX.
-    Recebe ?ref=35 ou ?ref=35,15,45,2
-    """
     ref = request.GET.get("ref")
     if not ref:
         return HttpResponse("Referência não informada.", status=400)
 
-    # lista de IDs de pedidos (1 ou vários)
     try:
         ids = [int(x) for x in ref.split(",") if x.strip()]
-    except ValueError:
+    except:
         return HttpResponse("Referência inválida.", status=400)
 
     pedidos = Pedido.objects.filter(id__in=ids)
     if not pedidos.exists():
         return HttpResponse("Pedidos não encontrados.", status=404)
 
-    # soma total dos pedidos
     total = sum(p.total for p in pedidos)
-
-    # external_reference = "35" ou "35,15,45,2"
     external_reference = ",".join(str(p.id) for p in pedidos)
 
-    # salvar external_reference em todos os pedidos envolvidos (pra auditoria)
     pedidos.update(external_reference=external_reference)
 
     mp = MercadoPagoClient()
-    try:
-        pagamento = mp.criar_pagamento_pix(
-            valor=total,
-            external_reference=external_reference,
-            descricao=f"Pagamento pedido(s): {external_reference}",
-        )
-    except Exception as e:
-        return HttpResponse(f"Erro ao gerar PIX: {e}", status=500)
+    pagamento = mp.criar_pagamento_pix(
+        valor=total,
+        external_reference=external_reference,
+        descricao=f"Pagamento pedido(s): {external_reference}"
+    )
 
     contexto = {
         "total": total,
@@ -242,63 +221,45 @@ def pix_qr(request):
     }
     return render(request, "pix.html", contexto)
 
+
 def pix_status(request):
-    """
-    Consulta simples: verifica se todos os pedidos do external_reference já estão
-    marcados como 'pago' (forma_pagamento='pago').
-    """
     ref = request.GET.get("ref")
     if not ref:
         return JsonResponse({"ok": False, "erro": "ref não informado"})
 
     try:
         ids = [int(x) for x in ref.split(",") if x.strip()]
-    except ValueError:
+    except:
         return JsonResponse({"ok": False, "erro": "ref inválido"})
 
     pedidos = Pedido.objects.filter(id__in=ids)
-    if not pedidos.exists():
-        return JsonResponse({"ok": False, "erro": "pedidos não encontrados"})
 
-    # se todos estiverem com forma_pagamento = "pago"
     todos_pagos = all(p.forma_pagamento == "pago" for p in pedidos)
 
     return JsonResponse({"ok": True, "pago": todos_pagos})
 
+
 @csrf_exempt
 def mp_webhook(request):
-    """
-    Webhook chamado pelo Mercado Pago.
-    Configurar essa URL lá no painel do MP.
-    Marca pedidos como pagos quando o pagamento é aprovado.
-    """
-    import requests
-
-    # MP pode mandar o ID pela querystring ou no body
     payment_id = request.GET.get("id") or request.GET.get("data.id")
+
     try:
         body = json.loads(request.body or "{}")
-    except json.JSONDecodeError:
+    except:
         body = {}
 
     if not payment_id:
-        payment_id = (
-            body.get("data", {}).get("id")
-            or body.get("id")
-        )
+        payment_id = body.get("data", {}).get("id") or body.get("id")
 
     if not payment_id:
         return HttpResponse("no id", status=200)
 
-    # busca detalhes do pagamento
     mp = MercadoPagoClient()
     url = f"{mp.base_url}/v1/payments/{payment_id}"
     headers = {"Authorization": f"Bearer {mp.token}"}
-    resp = requests.get(url, headers=headers, timeout=20)
-    data = resp.json()
 
-    if resp.status_code not in (200, 201):
-        return HttpResponse("error fetching payment", status=200)
+    resp = requests.get(url, headers=headers)
+    data = resp.json()
 
     status = data.get("status")
     external_reference = data.get("external_reference", "")
@@ -306,11 +267,143 @@ def mp_webhook(request):
     if status in ("approved", "credited") and external_reference:
         try:
             ids = [int(x) for x in external_reference.split(",") if x.strip()]
-        except ValueError:
+        except:
             ids = []
 
-        if ids:
-            # marca todos como pagos
-            Pedido.objects.filter(id__in=ids).update(forma_pagamento="pago")
+        Pedido.objects.filter(id__in=ids).update(forma_pagamento="pago")
 
     return HttpResponse("ok", status=200)
+
+
+# ===========================================================
+# ====================== PAINEL ADMIN =======================
+# ===========================================================
+
+PAINEL_SENHA = "12345"
+
+
+def painel_login(request):
+    return render(request, "painel_login.html")
+
+
+def painel_entrar(request):
+    senha = request.POST.get("senha")
+
+    if senha == PAINEL_SENHA:
+        request.session["painel_logado"] = True
+        return redirect("/painel/home/")
+
+    return render(request, "painel_login.html", {"erro": "Senha incorreta!"})
+
+
+def painel_home(request):
+    if not request.session.get("painel_logado"):
+        return redirect("/painel/")
+
+    pedidos = Pedido.objects.all().order_by("-id")
+
+    # CORREÇÃO: buscar pendentes corretamente
+    pendentes = Pedido.objects.exclude(forma_pagamento="pago")
+
+    return render(request, "painel_home.html", {
+        "pedidos": pedidos,
+        "pendentes": pendentes
+    })
+
+
+
+# ===========================================================
+# ========== ENVIAR MENSAGEM PARA TODOS (W-API) =============
+# ===========================================================
+
+def enviar_whatsapp(numero, msg):
+    import requests
+    import re
+    from django.conf import settings
+
+    # normaliza número (remove símbolos, garante formato 55...)
+    numero = re.sub(r"\D", "", str(numero))
+    if not numero.startswith("55") and len(numero) in (10, 11):
+        numero = "55" + numero
+
+    url = settings.WAPI_URL
+
+    headers = {
+        "Authorization": f"Bearer {settings.WAPI_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "phone": numero,
+        "message": msg
+    }
+
+    try:
+        r = requests.post(url, json=payload, headers=headers, timeout=10)
+        return r.json()
+    except Exception as e:
+        return {"erro": str(e)}
+
+
+
+
+def painel_msg_enviar(request):
+    if request.method != "POST":
+        return redirect("/painel/home/")
+
+    texto = request.POST.get("mensagem")
+
+    for cli in Usuario.objects.all():
+        msg = texto.replace("{nome}", cli.nome_completo)\
+                   .replace("{telefone}", cli.whatsapp)
+
+        enviar_whatsapp(cli.whatsapp, msg)
+
+    return redirect("/painel/home/")
+
+
+# ===========================================================
+# ====================== COBRAR ATRASADOS ====================
+# ===========================================================
+
+def painel_cobrar_enviar(request):
+    if request.method != "POST":
+        return redirect("/painel/home/")
+
+    texto = request.POST.get("mensagem")
+
+    # pegar todos que NÃO estão pagos
+    pendentes = Pedido.objects.exclude(forma_pagamento="pago")
+
+    dados = {}
+    for p in pendentes:
+
+        chave = p.whatsapp  # agrupamos por número
+
+        if chave not in dados:
+            dados[chave] = {
+                "nome": p.nome_cliente,
+                "whatsapp": p.whatsapp,
+                "total": 0,
+                "pedidos": []
+            }
+
+        dados[chave]["total"] += p.total
+        dados[chave]["pedidos"].append(str(p.id))
+
+    # enviar mensagens
+    for item in dados.values():
+        nome = item["nome"]
+        numero = item["whatsapp"]
+        total = item["total"]
+        ids = ", ".join(item["pedidos"])
+
+        msg = (
+            texto.replace("{nome}", nome)
+                 .replace("{total}", str(total))
+                 .replace("{pedidos}", ids)
+        )
+
+        enviar_whatsapp(numero, msg)
+
+    return redirect("/painel/home/")

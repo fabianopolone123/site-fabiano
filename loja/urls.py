@@ -20,6 +20,17 @@ urlpatterns = [
     # pagar pedidos (se já não tiver)
     path("pagar/", views.pagar, name="pagar"),
     path("pagar_listar/", views.pagar_listar, name="pagar_listar"),
+
+    path("painel/", views.painel_login, name="painel_login"),
+    path("painel/entrar/", views.painel_entrar, name="painel_entrar"),
+    path("painel/home/", views.painel_home, name="painel_home"),
+
+    # ENVIO DE MENSAGEM PARA TODOS
+    path("painel/msg_enviar/", views.painel_msg_enviar, name="painel_msg_enviar"),
+
+    # COBRAR ATRASADOS
+    path("painel/cobrar_enviar/", views.painel_cobrar_enviar, name="painel_cobrar_enviar"),
+
 ]
 
 

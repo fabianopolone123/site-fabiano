@@ -1,0 +1,24 @@
+<html>
+<head>
+    <title>Login Administrativo</title>
+    <link rel="stylesheet" href="/static/css/painel_login.css">
+
+</head>
+
+<body>
+    <div class="box">
+        <h2>Área Administrativa</h2>
+
+        <form method="POST" action="/painel/entrar/">
+            {% csrf_token %}
+            <input type="password" placeholder="Digite a senha" name="senha">
+
+            <button type="submit">Entrar</button>
+
+            {% if erro %}
+            <div class="erro">{{ erro }}</div>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>
