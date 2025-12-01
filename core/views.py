@@ -67,8 +67,9 @@ def criar_pedido(request):
         return JsonResponse({"ok": False, "erro": "Método inválido"})
 
     dados = json.loads(request.body)
+
     cliente_id = dados.get("cliente")
-    pagamento = dados.get("pagamento")
+    pagamento = dados.get("pagamento")   # "pix" | "6" | "20"
     itens = dados.get("itens")
 
     if not cliente_id or not pagamento or not itens:
@@ -76,20 +77,25 @@ def criar_pedido(request):
 
     cliente = Usuario.objects.get(id=cliente_id)
 
+    # ================================
+    # CALCULAR TOTAL DO PEDIDO
+    # ================================
     total = sum(item["preco"] * item["qtd"] for item in itens)
 
-    # =======================================================
-    # DATA DE COBRANÇA (6 / 20)
-    # =======================================================
+    # ================================
+    # CALCULAR DATA DE COBRANÇA (6 / 20)
+    # ================================
+    from datetime import date
     hoje = date.today()
     data_cobranca = None
 
-    if pagamento in ["6", "20"]:
-        dia = int(pagamento)
+    if pagamento in ("6", "20"):
+        dia = 6 if pagamento == "6" else 20
         mes = hoje.month
         ano = hoje.year
 
-        if hoje.day >= dia:
+        # se já passou do dia → vai para o próximo mês
+        if hoje.day > dia:
             mes += 1
             if mes > 12:
                 mes = 1
@@ -97,23 +103,24 @@ def criar_pedido(request):
 
         data_cobranca = date(ano, mes, dia)
 
-    # =======================================================
-    # CRIA PEDIDO
-    # =======================================================
+    # ================================
+    # CRIAR PEDIDO
+    # ================================
     pedido = Pedido.objects.create(
         nome_cliente=cliente.nome_completo,
         whatsapp=cliente.whatsapp,
         forma_pagamento=pagamento,
         data_cobranca=data_cobranca,
-        total=total,
+        total=total
     )
 
+    # external reference inicial
     pedido.external_reference = f"PEDIDO_{pedido.id}_{cliente.whatsapp}"
     pedido.save()
 
-    # =======================================================
-    # CRIA ITENS E BAIXA ESTOQUE
-    # =======================================================
+    # ================================
+    # CRIAR ITENS & BAIXAR ESTOQUE
+    # ================================
     for item in itens:
         produto = Produto.objects.get(nome=item["nome"])
 
@@ -127,17 +134,31 @@ def criar_pedido(request):
             preco_unitario=item["preco"],
         )
 
+        # baixa de estoque
         produto.estoque -= item["qtd"]
         produto.save()
 
-    # =======================================================
-    # PIX IMEDIATO
-    # =======================================================
+    # ================================
+    # ENVIAR NOTIFICAÇÃO AO ADMIN
+    # ================================
+    enviar_notificacao_admin(pedido)
+
+    # ================================
+    # SE FOR PIX À VISTA → redirecionar para QR Code
+    # ================================
     if pagamento == "pix":
         redirect_url = f"/pix/?ref={pedido.id}"
-        return JsonResponse({"ok": True, "pedido_id": pedido.id, "redirect_url": redirect_url})
+        return JsonResponse({
+            "ok": True,
+            "pedido_id": pedido.id,
+            "redirect_url": redirect_url
+        })
 
+    # ================================
+    # RETORNO FINAL (pagamento agendado)
+    # ================================
     return JsonResponse({"ok": True, "pedido_id": pedido.id})
+
 
 
 # ===========================================================
@@ -430,3 +451,35 @@ def salvar_template(request):
     t.save()
 
     return JsonResponse({"ok": True, "id": t.id})
+
+
+def enviar_notificacao_admin(pedido):
+    """
+    Envia mensagem automática para o ADM (seu número)
+    sempre que um pedido for criado.
+    """
+    try:
+        itens = ItemPedido.objects.filter(pedido=pedido)
+
+        texto_itens = ""
+        for item in itens:
+            texto_itens += f"- {item.produto.nome} x{item.quantidade} (R$ {item.preco_unitario})\n"
+
+        msg = (
+            "📦 *NOVO PEDIDO REALIZADO!*\n\n"
+            f"👤 Cliente: {pedido.nome_cliente}\n"
+            f"📱 WhatsApp: {pedido.whatsapp}\n"
+            f"💰 Total: R$ {pedido.total}\n"
+            f"📄 Forma de pagamento: {pedido.forma_pagamento.upper()}\n"
+        )
+
+        # Se for cobrança agendada
+        if pedido.data_cobranca:
+            msg += f"📅 Cobrança agendada para: {pedido.data_cobranca.strftime('%d/%m/%Y')}\n"
+
+        msg += "\n🛒 *Itens do pedido:*\n" + texto_itens
+
+        enviar_whatsapp("5514988208134", msg)
+
+    except Exception as e:
+        print("Erro ao enviar notificação ADM:", e)
