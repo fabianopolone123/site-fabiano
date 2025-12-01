@@ -5,52 +5,58 @@
 <head>
     <meta charset="UTF-8">
     <title>Loja Interna</title>
-    <link rel="stylesheet" href="/static/css/home.css">
+    <link rel="stylesheet" href="{% static 'css/homee.css' %}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
+
 <body>
 
-<!-- BARRA SUPERIOR (NAVBAR) -->
-<div class="topbar">
-    <h2>Geladinhos Gurmet e Donuts</h2>
+    <!-- NAVBAR -->
+    <div class="topbar">
+        <h2>Geladinhos Gourmet</h2>
 
-    <div class="menu">
+        <div class="menu">
+            <a href="/pagar/" class="menu-link">Pagar pedidos</a>
+            <a href="/painel/" class="btn-admin">ADM</a>
 
-        <!-- NOVO BOTÃO PAGAR PEDIDOS -->
-        <a href="/pagar/" class="menu-link">Pagar pedidos</a>
-        <a href="/painel/" class="btn-admin">ADM</a>
-        <!-- ÍCONE DO CARRINHO -->
-        <div class="carrinho-icone" onclick="window.location='/carrinho/'">
-            🛒 <span id="carrinho-count">0</span>
+            <!-- Ícone do carrinho -->
+            <div class="carrinho-icone" onclick="window.location='/carrinho/'">
+                🛒 <span id="carrinho-count">0</span>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- LISTA DE PRODUTOS -->
-<div id="lista-produtos">
+    <!-- LISTA DE PRODUTOS -->
+    <main class="produtos-container">
 
-    {% for p in produtos %}
-    <div class="produto">
+        {% for p in produtos %}
+        <article class="produto">
 
-        <img src="{{ p.imagem.url }}" alt="{{ p.nome }}">
+            <img src="{{ p.imagem.url }}" alt="{{ p.nome }}">
 
-        <h3>{{ p.nome }}</h3>
-        <p class="preco">Preço: R$ {{ p.preco }}</p>
-        <p class="estoque" data-estoque="{{ p.estoque }}">Estoque: {{ p.estoque }}</p>
+            <div class="info">
+                <h3>{{ p.nome }}</h3>
 
-        <div class="qtd-controle">
-            <button class="btn-menos">-</button>
-            <span class="qtd">1</span>
-            <button class="btn-mais">+</button>
-        </div>
+                {% if p.descricao %}
+                    <p class="descricao">{{ p.descricao }}</p>
+                {% endif %}
 
-        <button class="btn-add">Adicionar ao Carrinho</button>
-    </div>
-    {% endfor %}
+                <p class="preco">Preço: R$ {{ p.preco }}</p>
+                <p class="estoque" data-estoque="{{ p.estoque }}">Estoque: {{ p.estoque }}</p>
 
-</div>
+                <div class="qtd-controle">
+                    <button class="btn-menos">-</button>
+                    <span class="qtd">1</span>
+                    <button class="btn-mais">+</button>
+                </div>
+            </div>
 
-<script src="/static/js/home.js"></script>
+            <button class="btn-add">Adicionar ao Carrinho</button>
+        </article>
+        {% endfor %}
 
+    </main>
+
+    <script src="{% static 'js/home.js' %}"></script>
 </body>
 </html>

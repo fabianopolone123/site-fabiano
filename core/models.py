@@ -6,6 +6,7 @@ class Produto(models.Model):
     preco = models.DecimalField(max_digits=8, decimal_places=2)  # preço
     estoque = models.IntegerField(default=0)  # quantidade em estoque
     imagem = models.ImageField(upload_to='produtos/')  # upload imagem
+    descricao = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.nome  # mostra nome no admin
