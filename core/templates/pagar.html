@@ -25,12 +25,17 @@
 <div id="lista"></div>
 
 <button id="btn-pagar" onclick="confirmarPagamento()" style="display:none;">
-    Confirmar pagamento
+    Pagar pedidos selecionados
 </button>
 
 <script>
 function buscarPedidos() {
     const cliente = document.getElementById("cliente").value;
+
+    if (!cliente) {
+        alert("Selecione um cliente primeiro.");
+        return;
+    }
 
     fetch("/pagar_listar/", {
         method: "POST",
@@ -39,15 +44,25 @@ function buscarPedidos() {
     })
     .then(r => r.json())
     .then(res => {
-        if (!res.ok) return;
+        if (!res.ok) {
+            alert(res.erro || "Erro ao buscar pedidos.");
+            return;
+        }
 
         let html = "<h3>Pedidos em aberto:</h3>";
 
+        if (res.pedidos.length === 0) {
+            html += "<p>Não há pedidos em aberto para este cliente.</p>";
+            document.getElementById("lista").innerHTML = html;
+            document.getElementById("btn-pagar").style.display = "none";
+            return;
+        }
+
         res.pedidos.forEach(p => {
             html += `
-                <label>
+                <label class="pedido">
                     <input type="checkbox" class="pedido-check" value="${p.id}">
-                    Pedido ${p.id} — ${p.data} — R$ ${p.total}
+                    Pedido ${p.id} — ${p.data} — R$ ${p.total.toFixed(2)} — (${p.forma_pagamento})
                 </label><br>
             `;
         });
@@ -60,16 +75,13 @@ function buscarPedidos() {
 function confirmarPagamento() {
     const selecionados = [...document.querySelectorAll(".pedido-check:checked")].map(e => e.value);
 
-    fetch("/pagar_confirmar/", {
-        method: "POST",
-        body: JSON.stringify({ pedidos: selecionados }),
-        headers: {"Content-Type": "application/json"}
-    })
-    .then(r => r.json())
-    .then(res => {
-        alert("Pagamento marcado com sucesso!");
-        location.reload();
-    });
+    if (selecionados.length === 0) {
+        alert("Selecione pelo menos um pedido para pagar.");
+        return;
+    }
+
+    const ref = selecionados.join(",");
+    window.location.href = `/pix/?ref=${encodeURIComponent(ref)}`;
 }
 </script>
 

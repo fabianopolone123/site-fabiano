@@ -78,10 +78,17 @@ document.getElementById("btn-finalizar-pedido").onclick = async () => {
     const data = await resposta.json();
 
     if (data.ok) {
-        alert("Pedido criado com sucesso!");
         localStorage.removeItem("carrinho");
-        window.location = "/";
+
+        // SE O BACKEND MANDAR redirect_url → É PIX!
+        if (data.redirect_url) {
+            window.location = data.redirect_url; // vai para /pix/?ref=ID
+        } else {
+            alert("Pedido criado com sucesso!");
+            window.location = "/";
+        }
     }
+
 };
 
 

@@ -1,0 +1,59 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Pagamento PIX</title>
+    <link rel="stylesheet" href="{% static 'css/pix.css' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<h1>Pagamento via PIX</h1>
+
+<div class="card-pix">
+    <p><strong>Valor total:</strong> R$ {{ total }}</p>
+    <p><strong>Referência do(s) pedido(s):</strong> {{ ref }}</p>
+
+    <div class="qr-container">
+        <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="QR Code PIX">
+    </div>
+
+    <p>Caso prefira copiar e colar a chave PIX:</p>
+    <textarea id="pix-copia-cola" readonly>{{ qr_code }}</textarea>
+    <button onclick="copiarPix()">Copiar código PIX</button>
+
+    <p id="status-pagamento">Status: aguardando pagamento...</p>
+</div>
+
+<script>
+const ref = "{{ ref|escapejs }}";
+
+function copiarPix() {
+    const ta = document.getElementById("pix-copia-cola");
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    document.execCommand("copy");
+    alert("Código PIX copiado!");
+}
+
+// checa status a cada 5 segundos
+setInterval(() => {
+    fetch(`/pix/status/?ref=${encodeURIComponent(ref)}`)
+      .then(r => r.json())
+      .then(res => {
+          if (!res.ok) return;
+          const statusEl = document.getElementById("status-pagamento");
+          if (res.pago) {
+              statusEl.innerText = "Status: PAGAMENTO CONFIRMADO ✅";
+              statusEl.style.color = "green";
+          } else {
+              statusEl.innerText = "Status: aguardando pagamento...";
+          }
+      });
+}, 5000);
+</script>
+
+</body>
+</html>

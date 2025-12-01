@@ -1,0 +1,83 @@
+body {
+    background: #f4f4f4;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.card-pix {
+    background: white;
+    max-width: 420px;
+    width: 90%;
+    margin: auto;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+}
+
+.card-pix p {
+    margin: 10px 0;
+    font-size: 16px;
+}
+
+.qr-container {
+    margin: 20px 0;
+}
+
+.qr-container img {
+    width: 260px;
+    height: 260px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+textarea {
+    width: 100%;
+    max-width: 360px;          /* impede que ultrapasse o card */
+    margin: 0 auto;            /* centraliza */
+    display: block;            /* necessário para margin auto */
+    height: 100px;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    resize: none;
+    box-sizing: border-box;     /* CORREÇÃO PRINCIPAL */
+}
+
+
+button {
+    background: #2D81FF;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    margin-bottom: 15px;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #1F63CC;
+}
+
+#status-pagamento {
+    margin-top: 15px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#status-pagamento.waiting {
+    color: #444;
+}
+
+#status-pagamento.pago {
+    color: green;
+}

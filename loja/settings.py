@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +26,18 @@ SECRET_KEY = 'django-insecure-ua%$4)lq+97km2#3_3ftlh=%z*r9)lzm398e6_wc#fynnm%^uf
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "fabianopolone.com.br",
+    "www.fabianopolone.com.br",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://fabianopolone.com.br",
+    "https://www.fabianopolone.com.br",
+]
+
 
 
 # Application definition
@@ -132,3 +144,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'       # URL dos arquivos enviados
 MEDIA_ROOT = BASE_DIR / 'media'   # Pasta onde salva os arquivos
 
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "APP_USR-2137855357051440-092207-707409999b7b088b2b514fa3529c8d53-53350581")
+MP_API_BASE     = os.getenv("MP_API_BASE", "https://api.mercadopago.com")

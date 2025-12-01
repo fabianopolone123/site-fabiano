@@ -1,8 +1,12 @@
 from django.shortcuts import render
 from .models import Produto, Usuario, Pedido, ItemPedido  # importa produtos
 import json
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+
+from decimal import Decimal
+from .mercadopago_client import MercadoPagoClient
+
 
 
 
@@ -132,7 +136,15 @@ def criar_pedido(request):
         produto.estoque -= item["qtd"]
         produto.save()
 
+        # SE FOR PIX À VISTA: já manda o cliente para a tela única do QRCode
+    if pagamento == "pix":
+        # external_reference será tratado lá na pix_qr
+        redirect_url = f"/pix/?ref={pedido.id}"
+        return JsonResponse({"ok": True, "pedido_id": pedido.id, "redirect_url": redirect_url})
+
+    # se não for pix, fluxo normal
     return JsonResponse({"ok": True, "pedido_id": pedido.id})
+
 
 
 def pagar(request):
@@ -181,3 +193,124 @@ def pagar_confirmar(request):
     Pedido.objects.filter(id__in=ids).update(forma_pagamento="pago")
 
     return JsonResponse({"ok": True})
+
+
+def pix_qr(request):
+    """
+    Página única do QRCode PIX.
+    Recebe ?ref=35 ou ?ref=35,15,45,2
+    """
+    ref = request.GET.get("ref")
+    if not ref:
+        return HttpResponse("Referência não informada.", status=400)
+
+    # lista de IDs de pedidos (1 ou vários)
+    try:
+        ids = [int(x) for x in ref.split(",") if x.strip()]
+    except ValueError:
+        return HttpResponse("Referência inválida.", status=400)
+
+    pedidos = Pedido.objects.filter(id__in=ids)
+    if not pedidos.exists():
+        return HttpResponse("Pedidos não encontrados.", status=404)
+
+    # soma total dos pedidos
+    total = sum(p.total for p in pedidos)
+
+    # external_reference = "35" ou "35,15,45,2"
+    external_reference = ",".join(str(p.id) for p in pedidos)
+
+    # salvar external_reference em todos os pedidos envolvidos (pra auditoria)
+    pedidos.update(external_reference=external_reference)
+
+    mp = MercadoPagoClient()
+    try:
+        pagamento = mp.criar_pagamento_pix(
+            valor=total,
+            external_reference=external_reference,
+            descricao=f"Pagamento pedido(s): {external_reference}",
+        )
+    except Exception as e:
+        return HttpResponse(f"Erro ao gerar PIX: {e}", status=500)
+
+    contexto = {
+        "total": total,
+        "ref": external_reference,
+        "qr_code": pagamento["qr_code"],
+        "qr_code_base64": pagamento["qr_code_base64"],
+        "payment_id": pagamento["id"],
+    }
+    return render(request, "pix.html", contexto)
+
+def pix_status(request):
+    """
+    Consulta simples: verifica se todos os pedidos do external_reference já estão
+    marcados como 'pago' (forma_pagamento='pago').
+    """
+    ref = request.GET.get("ref")
+    if not ref:
+        return JsonResponse({"ok": False, "erro": "ref não informado"})
+
+    try:
+        ids = [int(x) for x in ref.split(",") if x.strip()]
+    except ValueError:
+        return JsonResponse({"ok": False, "erro": "ref inválido"})
+
+    pedidos = Pedido.objects.filter(id__in=ids)
+    if not pedidos.exists():
+        return JsonResponse({"ok": False, "erro": "pedidos não encontrados"})
+
+    # se todos estiverem com forma_pagamento = "pago"
+    todos_pagos = all(p.forma_pagamento == "pago" for p in pedidos)
+
+    return JsonResponse({"ok": True, "pago": todos_pagos})
+
+@csrf_exempt
+def mp_webhook(request):
+    """
+    Webhook chamado pelo Mercado Pago.
+    Configurar essa URL lá no painel do MP.
+    Marca pedidos como pagos quando o pagamento é aprovado.
+    """
+    import requests
+
+    # MP pode mandar o ID pela querystring ou no body
+    payment_id = request.GET.get("id") or request.GET.get("data.id")
+    try:
+        body = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        body = {}
+
+    if not payment_id:
+        payment_id = (
+            body.get("data", {}).get("id")
+            or body.get("id")
+        )
+
+    if not payment_id:
+        return HttpResponse("no id", status=200)
+
+    # busca detalhes do pagamento
+    mp = MercadoPagoClient()
+    url = f"{mp.base_url}/v1/payments/{payment_id}"
+    headers = {"Authorization": f"Bearer {mp.token}"}
+    resp = requests.get(url, headers=headers, timeout=20)
+    data = resp.json()
+
+    if resp.status_code not in (200, 201):
+        return HttpResponse("error fetching payment", status=200)
+
+    status = data.get("status")
+    external_reference = data.get("external_reference", "")
+
+    if status in ("approved", "credited") and external_reference:
+        try:
+            ids = [int(x) for x in external_reference.split(",") if x.strip()]
+        except ValueError:
+            ids = []
+
+        if ids:
+            # marca todos como pagos
+            Pedido.objects.filter(id__in=ids).update(forma_pagamento="pago")
+
+    return HttpResponse("ok", status=200)
