@@ -34,7 +34,7 @@ produtos.forEach(card => {
     const estoque = parseInt(card.querySelector(".estoque").dataset.estoque);
 
     const nome = card.querySelector("h3").textContent;
-    const preco = parseFloat(card.dataset.preco);  // <<<<< AGORA CORRETO!
+    const preco = parseFloat(card.dataset.preco.replace(",", ".")); 
     const imagem = card.querySelector("img").src;
 
     let qtd = 1;
