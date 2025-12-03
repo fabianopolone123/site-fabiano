@@ -38,7 +38,6 @@ document.getElementById("btn-salvar").onclick = async () => {
         return;
     }
 
-    // AJAX para backend salvar cliente
     const resposta = await fetch("/salvar_cliente/", {
         method: "POST",
         headers: {"Content-Type": "application/json", "X-CSRFToken": getCookie('csrftoken')},
@@ -49,50 +48,87 @@ document.getElementById("btn-salvar").onclick = async () => {
 
     if (data.ok) {
         alert("Cliente cadastrado!");
-
-        // recarregar página com novo cliente no select
         window.location.reload();
     }
 };
 
 
-// Finalizar pedido
-document.getElementById("btn-finalizar-pedido").onclick = async () => {
+
+// ==========================
+// FINALIZAR PEDIDO (NOVA VERSÃO)
+// ==========================
+
+document.getElementById("btn-finalizar-pedido").onclick = async function() {
+
+    const btn = document.getElementById("btn-finalizar-pedido");
+
+    // impedir múltiplos cliques
+    if (btn.disabled) return;
+
+    btn.disabled = true;
+    btn.innerText = "Processando...";
 
     const cliente = document.getElementById("cliente-select").value;
 
-    if (!cliente) return alert("Selecione o cliente!");
+    if (!cliente) {
+        alert("Selecione o cliente!");
+        btn.disabled = false;
+        btn.innerText = "Finalizar Pedido";
+        return;
+    }
 
-    if (!formaPagamento) return alert("Escolha a forma de pagamento!");
+    if (!formaPagamento) {
+        alert("Escolha a forma de pagamento!");
+        btn.disabled = false;
+        btn.innerText = "Finalizar Pedido";
+        return;
+    }
 
-    const resposta = await fetch("/criar_pedido/", {
-        method: "POST",
-        headers: {"Content-Type": "application/json", "X-CSRFToken": getCookie('csrftoken')},
-        body: JSON.stringify({
-            cliente,
-            pagamento: formaPagamento,
-            itens: carrinho
-        })
-    });
+    // TOKEN para idempotência do pedido
+    const token = document.getElementById("pedido_token").value;
 
-    const data = await resposta.json();
+    try {
 
-    if (data.ok) {
-        localStorage.removeItem("carrinho");
+        const resposta = await fetch("/criar_pedido/", {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "X-CSRFToken": getCookie('csrftoken')},
+            body: JSON.stringify({
+                cliente,
+                pagamento: formaPagamento,
+                itens: carrinho,
+                token: token
+            })
+        });
 
-        // SE O BACKEND MANDAR redirect_url → É PIX!
-        if (data.redirect_url) {
-            window.location = data.redirect_url; // vai para /pix/?ref=ID
+        const data = await resposta.json();
+
+        if (data.ok) {
+
+            localStorage.removeItem("carrinho");
+
+            if (data.redirect_url) {
+                window.location = data.redirect_url; // pagamento PIX
+            } else {
+                alert("Pedido criado com sucesso!");
+                window.location = "/";
+            }
+
         } else {
-            alert("Pedido criado com sucesso!");
-            window.location = "/";
+            alert(data.erro || "Erro ao criar pedido.");
+            btn.disabled = false;
+            btn.innerText = "Finalizar Pedido";
         }
+
+    } catch (err) {
+        alert("Erro de conexão. Tente novamente.");
+        btn.disabled = false;
+        btn.innerText = "Finalizar Pedido";
     }
 
 };
 
 
-// função pra pegar CSRF
+// Pega CSRF
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {

@@ -5,7 +5,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Finalizar Pedido</title>
-    {% load static %}
     <link rel="stylesheet" href="{% static 'css/finalizar.css' %}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -20,7 +19,6 @@
         <option value="">— Selecione —</option>
         {% for c in clientes %}
         <option value="{{ c.id }}">{{ c.nome_completo }} — ({{ c.whatsapp }})</option>
-
         {% endfor %}
     </select>
 
@@ -41,6 +39,9 @@
         <div class="pg-card" data-pg="6">Agendar dia 6</div>
         <div class="pg-card" data-pg="20">Agendar dia 20</div>
     </div>
+
+    <!-- TOKEN PARA IMPEDIR PEDIDO DUPLICADO -->
+    <input type="hidden" id="pedido_token" value="{{ request.session.session_key }}">
 
     <button class="btn-finalizar" id="btn-finalizar-pedido">Finalizar Pedido</button>
 

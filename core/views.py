@@ -122,6 +122,23 @@ def criar_pedido(request):
         return JsonResponse({"ok": False, "erro": "Método inválido"})
 
     dados = json.loads(request.body)
+
+    # ==========================================================
+    # 🔥 BLOQUEIO CONTRA CLIQUE DUPLO / REQUISIÇÃO DUPLICADA
+    # ==========================================================
+    token = dados.get("token")
+
+    if not token:
+        return JsonResponse({"ok": False, "erro": "Token ausente"})
+
+    ultimo_token = request.session.get("ultimo_pedido_token")
+
+    if ultimo_token == token:
+        return JsonResponse({"ok": False, "erro": "Pedido já foi processado."})
+
+    request.session["ultimo_pedido_token"] = token
+    # ==========================================================
+
     cliente_id = dados.get("cliente")
     pagamento = dados.get("pagamento")
     itens = dados.get("itens")
@@ -134,7 +151,6 @@ def criar_pedido(request):
     # Calcular total
     total = sum(item["preco"] * item["qtd"] for item in itens)
 
-    from datetime import date
     hoje = date.today()
     data_cobranca = None
 
@@ -180,25 +196,19 @@ def criar_pedido(request):
         produto.estoque -= item["qtd"]
         produto.save()
 
-    # -------------------------------------------------
-    # 🔔 Enviar mensagem automática ao cliente + ADM
-    # -------------------------------------------------
-
+    # Enviar mensagens
     msg_cliente = montar_msg_cliente(pedido, itens)
     enviar_whatsapp(pedido.whatsapp, msg_cliente)
 
     msg_admin = montar_msg_admin(pedido, itens)
     enviar_whatsapp("5514988208134", msg_admin)
 
-
-    # Se PIX → redireciona para QR único
+    # PIX → Redireciona
     if pagamento == "pix":
         redirect_url = f"/pix/?ref={pedido.id}"
         return JsonResponse({"ok": True, "pedido_id": pedido.id, "redirect_url": redirect_url})
 
     return JsonResponse({"ok": True, "pedido_id": pedido.id})
-
-
 
 
 # ===========================================================
@@ -373,8 +383,6 @@ def painel_home(request):
         "templates": templates
     })
 
-
-
 # ===========================================================
 # ========== ENVIAR MENSAGEM PARA TODOS (W-API) =============
 # ===========================================================
@@ -396,8 +404,6 @@ def enviar_whatsapp(numero, msg):
         return {"error": str(e)}
 
 
-
-
 def painel_msg_enviar(request):
     if request.method != "POST":
         return redirect("/painel/home/")
@@ -409,17 +415,14 @@ def painel_msg_enviar(request):
                    .replace("{telefone}", cli.whatsapp)
 
         enviar_whatsapp(cli.whatsapp, msg)
-        time.sleep(7)  # 🔥 evita bloqueio
+        time.sleep(7)
 
     return redirect("/painel/home/")
 
 
-
 # ===========================================================
-# ====================== COBRAR ATRASADOS ====================
+# ====================== COBRAR ATRASADOS ===================
 # ===========================================================
-
-import time
 
 def painel_cobrar_enviar(request):
     if request.method != "POST":
@@ -447,20 +450,17 @@ def painel_cobrar_enviar(request):
                    .replace("{pedidos}", ids)
 
         enviar_whatsapp(cli.whatsapp, msg)
-        time.sleep(7)  # 🔥 evita bloqueio
+        time.sleep(7)
 
     return redirect("/painel/home/")
 
 
 def carregar_template(request, id):
-    from .models import TemplateMensagem
-
     try:
         t = TemplateMensagem.objects.get(id=id)
         return JsonResponse({"ok": True, "texto": t.conteudo})
     except:
         return JsonResponse({"ok": False})
-
 
 
 @csrf_exempt
@@ -481,10 +481,6 @@ def salvar_template(request):
 
 
 def enviar_notificacao_admin(pedido):
-    """
-    Envia mensagem automática para o ADM (seu número)
-    sempre que um pedido for criado.
-    """
     try:
         itens = ItemPedido.objects.filter(pedido=pedido)
 
@@ -500,7 +496,6 @@ def enviar_notificacao_admin(pedido):
             f"📄 Forma de pagamento: {pedido.forma_pagamento.upper()}\n"
         )
 
-        # Se for cobrança agendada
         if pedido.data_cobranca:
             msg += f"📅 Cobrança agendada para: {pedido.data_cobranca.strftime('%d/%m/%Y')}\n"
 
