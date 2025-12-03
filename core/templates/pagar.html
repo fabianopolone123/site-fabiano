@@ -6,7 +6,6 @@
     <meta charset="UTF-8">
     <title>Pagar pedidos</title>
     <link rel="stylesheet" href="/static/css/pagar.css">
-
 </head>
 <body>
 
@@ -60,10 +59,21 @@ function buscarPedidos() {
 
         res.pedidos.forEach(p => {
             html += `
-                <label class="pedido">
+                <div class="item-pedido">
                     <input type="checkbox" class="pedido-check" value="${p.id}">
-                    Pedido ${p.id} — ${p.data} — R$ ${p.total.toFixed(2)} — (${p.forma_pagamento})
-                </label><br>
+                    
+                    <strong>Pedido ${p.id}</strong><br>
+
+                    📅 Feito em: <b>${p.data_pedido}</b><br>
+                    🧾 Vencimento: <b>${p.data_cobranca}</b><br>
+                    💰 Valor: <b>R$ ${p.total.toFixed(2).replace('.', ',')}</b><br>
+
+                    🛍 Itens:<br>
+                    <ul>
+                        ${p.itens.map(i => `<li>${i}</li>`).join("")}
+                    </ul>
+                </div>
+                <hr>
             `;
         });
 

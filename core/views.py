@@ -237,12 +237,19 @@ def pagar_listar(request):
 
     pedidos = Pedido.objects.filter(nome_cliente=cliente.nome_completo).exclude(forma_pagamento="pago")
 
-    lista = [{
-        "id": p.id,
-        "data": p.data_pedido.strftime("%d/%m/%Y"),
-        "total": float(p.total),
-        "forma_pagamento": p.forma_pagamento,
-    } for p in pedidos]
+    lista = []
+
+    for p in pedidos:
+        itens = ItemPedido.objects.filter(pedido=p)
+
+        lista.append({
+            "id": p.id,
+            "data_pedido": p.data_pedido.strftime("%d/%m/%Y"),
+            "data_cobranca": p.data_cobranca.strftime("%d/%m/%Y") if p.data_cobranca else "--",
+            "total": float(p.total),
+            "itens": [f"{i.produto.nome} x{i.quantidade}" for i in itens]
+        })
+
 
     return JsonResponse({"ok": True, "pedidos": lista})
 
