@@ -12,31 +12,53 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ua%$4)lq+97km2#3_3ftlh=%z*r9)lzm398e6_wc#fynnm%^uf'
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.lower() in ("1", "true", "t", "yes", "y", "on")
+
+
+def env_list(name: str, default=None, separator: str = ",") -> list[str]:
+    raw = os.getenv(name)
+    if raw is None:
+        return default or []
+    return [item.strip() for item in raw.split(separator) if item.strip()]
+
+
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DEBUG", False)
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "fabianopolone.com.br",
-    "www.fabianopolone.com.br",
-]
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    [
+        "127.0.0.1",
+        "localhost",
+        "fabianopolone.com.br",
+        "www.fabianopolone.com.br",
+    ],
+)
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://fabianopolone.com.br",
-    "https://www.fabianopolone.com.br",
-]
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", [])
+if not CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = [
+        f"https://{host}"
+        for host in ALLOWED_HOSTS
+        if host not in ("127.0.0.1", "localhost")
+    ]
 
 
 
@@ -85,12 +107,26 @@ WSGI_APPLICATION = 'loja.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").lower()
+
+if DB_ENGINE == "postgres":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "loja"),
+            "USER": os.getenv("DB_USER", "loja"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.getenv("DB_NAME", BASE_DIR / "db.sqlite3"),
+        }
+    }
 
 
 # Password validation
@@ -144,10 +180,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'       # URL dos arquivos enviados
 MEDIA_ROOT = BASE_DIR / 'media'   # Pasta onde salva os arquivos
 
-MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "APP_USR-2137855357051440-092207-707409999b7b088b2b514fa3529c8d53-53350581")
-MP_API_BASE     = os.getenv("MP_API_BASE", "https://api.mercadopago.com")
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "")
+MP_API_BASE = os.getenv("MP_API_BASE", "https://api.mercadopago.com")
 
 
-WAPI_TOKEN = "o8bWQDnlomrsOaBF2CqnlHguBKIbX87By"
-WAPI_INSTANCE = "LITE-F75JN4-FWW3NA"
-WAPI_URL = f"https://api.w-api.app/v1/message/send-text?instanceId={WAPI_INSTANCE}"
+WAPI_TOKEN = os.getenv("WAPI_TOKEN", "")
+WAPI_INSTANCE = os.getenv("WAPI_INSTANCE", "")
+WAPI_URL = (
+    f"https://api.w-api.app/v1/message/send-text?instanceId={WAPI_INSTANCE}"
+    if WAPI_INSTANCE
+    else ""
+)
